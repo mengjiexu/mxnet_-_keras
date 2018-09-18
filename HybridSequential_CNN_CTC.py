@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import mxnet as mx
 from mxnet import gluon, nd, autograd, init
 from mxnet.gluon import loss
@@ -54,7 +71,7 @@ class SwapAxes(nn.HybridBlock):
         return F.swapaxes(x, self.dim1, self.dim2)
 
 
-with mx.Context(mx.gpu(0)):
+with mx.Context(mx.cpu(0)):
     model = nn.HybridSequential()
     model.add(SwapAxes(1,2),
               CBR(40, 1),
@@ -155,7 +172,7 @@ def get_str2idx(data_dir):
 
 
 def get_iter(batch_size):
-    data_dir = '/media/xmj/ubt_2t/中文语音识别/data_thchs30/data'
+    data_dir = './data'
     train_iter = get_data_gen(data_dir, get_str2idx(data_dir)[1], batch_size)
     for x, y in train_iter:
         yield nd.array(x), nd.array(y)
@@ -163,33 +180,29 @@ def get_iter(batch_size):
 
 class ShowProcess():
     """
-    显示处理进度的类
-    调用该类相关函数即可实现处理进度的显示
+    process bar to show the process and loss
     """
-    i = 0 # 当前的处理进度
-    max_steps = 0 # 总共需要处理的次数
-    max_arrow = 50 #进度条的长度
+    i = 0 
+    max_steps = 0 
+    max_arrow = 50 
     infoDone = 'done'
 
-    # 初始化函数，需要知道总共的处理次数
     def __init__(self, max_steps, infoDone = 'Done'):
         self.max_steps = max_steps
         self.i = 0
         self.infoDone = infoDone
 
-    # 显示函数，根据当前的处理进度i显示进度
-    # 效果为[>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>]100.00%
     def show_process(self, loss, i=None):
         if i is not None:
             self.i = i
         else:
             self.i += 1
-        num_arrow = int(self.i * self.max_arrow / self.max_steps) #计算显示多少个'>'
-        num_line = self.max_arrow - num_arrow #计算显示多少个'-'
-        percent = self.i * 100.0 / self.max_steps #计算完成进度，格式为xx.xx%
+        num_arrow = int(self.i * self.max_arrow / self.max_steps) 
+        num_line = self.max_arrow - num_arrow 
+        percent = self.i * 100.0 / self.max_steps
         process_bar = '[' + '>' * num_arrow + '-' * num_line + ']'\
-                      + '%.2f' % percent + '%, loss:' + str(loss) + '\r' #带输出的字符串，'\r'表示不换行回到最左边
-        sys.stdout.write(process_bar) #这两句打印字符到终端
+                      + '%.2f' % percent + '%, loss:' + str(loss) + '\r'
+        sys.stdout.write(process_bar)
         sys.stdout.flush()
         if self.i >= self.max_steps:
             self.close()
@@ -203,13 +216,13 @@ class ShowProcess():
 
 my_ctcloss = loss.CTCLoss()
 def train(net, num_epochs, lr, batch_size):
-    with mx.Context(mx.gpu(0)):
+    with mx.Context(mx.cpu(0)):
         train_ls = []
         trainer = gluon.Trainer(net.collect_params(), 'adam',{
             'learning_rate': lr,
         })
         for epoch in range(num_epochs):
-            max_steps = len(os.listdir('/media/xmj/ubt_2t/中文语音识别/data_thchs30/data'))//3 //batch_size
+            max_steps = len(os.listdir('./data'))//3 //batch_size
             process_bar = ShowProcess(max_steps, 'OK')
             train_iter = get_iter(batch_size)
             for x, y in train_iter:
@@ -227,20 +240,9 @@ def train(net, num_epochs, lr, batch_size):
         return train_ls
 
 
-def train_with_gb(net, num_epochs, lr, batch_size):
-    with mx.Context(mx.gpu(0)):
-        trainer = gluon.Trainer(net.collect_params(), 'adam', {'learning_rate':lr})
-        train_iter = get_iter(batch_size)
-        test_iter = get_iter(batch_size//2)
-        gb.train(train_iter, test_iter, net, my_ctcloss, trainer, mx.gpu(0), num_epochs )
-
-
-ctx = [mx.gpu(0)] # , mx.cpu()]
+ctx = [ mx.cpu()]
 model.initialize(init=init.Xavier(), ctx=ctx)
 model.hybridize()
-# model.load_parameters('mxnetCnn20.param', ctx = ctx[0])
-print(model(nd.random_uniform(shape=(2, 500, 39), ctx=ctx[0])))
-train(model, 10000, 0.001, 20)
-# train_with_gb(model, 10000, 0.01, 2)
+train(model, 10, 0.001, 2)
 
 
