@@ -21,4 +21,4 @@ The Keras_crnn.py is using CNN and GRU to train the network and the keras_cnn_CT
 ## Suggestion
 I suggest you to use the HybridSequential_CNN_CTC.py to train the model, because it use resnet-50 and have better performance.
 
-
+my email:1596446455@qq.com
